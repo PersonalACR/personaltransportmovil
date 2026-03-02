@@ -8,14 +8,18 @@ import {
   RefreshControl,
   FlatList,
   ImageBackground,
+  Alert 
 } from "react-native";
 import { CameraView } from "expo-camera";
 import { useCameraPermissions } from 'expo-camera';
+import { HubConnectionBuilder, LogLevel, HubConnectionState, HttpTransportType } from '@microsoft/signalr';
 import Button from "../components/Button";
 import ModalPoup from "../components/ModalPoup";
-import { GetTravelsApi, ChangeStatusTravel, RegisterPasengerBoarding } from "../DataAccess/DataAccess";
+import { GetTravelsApi, ChangeStatusTravel, RegisterPasengerBoarding, getUserData } from "../DataAccess/DataAccess";
 import StatusTravel from "../constants/StatusTravel";
 import { getTime } from "../Tools/Tools";
+
+const hubUrl = "https://back-j10z.onrender.com/travelRT";
 
 export default function HomeDriverPrivate() {
   const [listTravels, setTravels] = useState();
@@ -26,6 +30,8 @@ export default function HomeDriverPrivate() {
   const [isTraveling, setIsTraveling] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const [passengersScanned, setPassengersScanned,] = useState([]);
+  const [connection, SetConnection] = useState(null);
+  const [userData, setUserData] = useState(null);
 
   const getData = async () => {
     setIsLoading(true);
@@ -37,7 +43,6 @@ export default function HomeDriverPrivate() {
         setIsTraveling(false);
       }
       setTravels(travels);
-      console.log(travels);
     } else {
       setTravels([]);
     }
@@ -126,6 +131,25 @@ export default function HomeDriverPrivate() {
     (async () => {
       await getData();
       requestPermission();
+      const data = await getUserData();
+      setUserData(JSON.parse(data));
+
+      const newConnection = new HubConnectionBuilder()
+        .withUrl(hubUrl, {
+          withCredentials: true,
+          transport: HttpTransportType.WebSockets
+        })
+        .withAutomaticReconnect() 
+        .configureLogging(LogLevel.Information)
+        .build();
+        
+      SetConnection(newConnection);
+
+      return () => {
+          if (newConnection) {
+            newConnection.stop();
+          }
+      }
     })();
   }, []);
 
@@ -136,6 +160,26 @@ export default function HomeDriverPrivate() {
       updateTravels[index] = newItem;
       setTravels(updateTravels);
     }
+  };
+
+  const confirmationAlert = async (travel, status) => {
+    const action = status == 1 ? 'inicio' : status == 2 ? 'cancelación' : 'finalización';
+
+    Alert.alert(
+      `Confirmar ${action} del viaje`,
+      `¿Estás seguro de que deseas ${action} este viaje?`, 
+      [
+        {
+          text: "Cancelar",
+          style: "cancel"
+        },
+        { 
+          text: "Aceptar", 
+          onPress: () => handleOptionPress(travel, status), 
+          style: "destructive" 
+        }
+      ],
+    );
   };
 
   const handleOptionPress = async (travel, status) => {
@@ -169,6 +213,7 @@ export default function HomeDriverPrivate() {
         return <Badge status="secondary" value="Finalizado" />;
     }
   };
+
   const renderItem = ({ item }) => (
     <ImageBackground style={!isTraveling ? styles.card : isTraveling && item.status == 1 ? styles.card : styles.HiddenCard} key={item.travelID}>
       <View style={styles.cardContent}>
@@ -203,7 +248,7 @@ export default function HomeDriverPrivate() {
               filled
               disabled={isTraveling}
               onPress={() =>
-                handleOptionPress(item, StatusTravel.Started)
+                confirmationAlert(item, StatusTravel.Started)
               }
             />
           ) : item.status === 1 ? (
@@ -214,7 +259,7 @@ export default function HomeDriverPrivate() {
                 title="Cancelar"
                 filled
                 onPress={() =>
-                  handleOptionPress(item, StatusTravel.Canceled)
+                  confirmationAlert(item, StatusTravel.Canceled)
                 }
               />
               <Button
@@ -223,7 +268,7 @@ export default function HomeDriverPrivate() {
                 title="Finalizar"
                 filled
                 onPress={() =>
-                  handleOptionPress(item, StatusTravel.Finished)
+                  confirmationAlert(item, StatusTravel.Finished)
                 }
               />
             </>
@@ -235,8 +280,48 @@ export default function HomeDriverPrivate() {
     </ImageBackground>
   );
 
+  useEffect(() => {
+      if (connection !== null && connection.state === HubConnectionState.Disconnected) {
+        connection.onreconnected(async () => {
+            await connection.invoke("JoinGroup", userData.companyGroup);
+        });
 
-  useEffect(() => {}, [isVisible, isLoading]);
+        connection.on("TravelsSignalR", (travelInfo) => {
+          setTravels((prevItems) =>
+                prevItems.map((item) => { 
+                  if (item.travelID === travelInfo.travelId) {
+                    if (travelInfo.status !== item.status) {
+                      if(travelInfo.status !== 1){
+                        setIsTraveling(false);
+                        setPassengersScanned([]);
+                        setMessage(`El viaje con el folio ${item.folio} sea finalizado.`);
+                        setImageMessage(require("../assets/success.png"));
+                        setIsVisible(true);
+                        return {
+                          ...item,
+                          status: travelInfo.status,
+                          passengersOnBoard: passengersScanned
+                        };
+                      } else {
+                        return {
+                          ...item,
+                          status: travelInfo.status,
+                        };
+                      }
+      
+                    }
+                  }
+                  return item;
+                })
+          );
+        });
+
+        connection.start()
+          .then(async () => {
+            await connection.invoke("JoinGroup", userData.companyGroup);
+          }).catch((err) => console.error("Error in SignalR:", err));
+      }
+  }, [connection]);
 
   return (
     <ScrollView
