@@ -3,8 +3,23 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 import AppNavigation from "./Navigation/AppNavigation";
 import AuthScreens from "./Navigation/AuthScreens";
+import * as Sentry from '@sentry/react-native';
 
-export default function App() {
+Sentry.init({
+  dsn: 'https://8bc37b30355fd9008157bdd8a758b235@o4510916669800448.ingest.us.sentry.io/4510973228941312',
+  sendDefaultPii: true,
+  enableLogs: true,
+  debug: true, 
+  enableNative: true,
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1,
+  integrations: [Sentry.mobileReplayIntegration()],
+
+  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
+  // spotlight: __DEV__,
+});
+
+export default Sentry.wrap(function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isPasenger, setIsPasenger] = useState(true);
   const [isPrivate, setIsPrivate] = useState(false);
@@ -41,4 +56,4 @@ export default function App() {
       )}
     </NavigationContainer>
   );
-}
+});

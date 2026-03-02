@@ -4,21 +4,21 @@
     "slug": "personaltransportmovil",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/bus.png",
+    "icon": "./assets/app-icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/bus.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "image": "./assets/app-icon.png",
+      "backgroundColor": "#1A1A1A"
     },
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/bus.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/app-icon.png",
+        "backgroundColor": "#1A1A1A"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.anonymous.personaltransportmovil"
@@ -28,7 +28,15 @@
     },
     "plugins": [
       "expo-asset",
-      "expo-font"
+      "expo-font",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "react-native",
+          "organization": "personaltransport"
+        }
+      ]
     ]
   }
 }
