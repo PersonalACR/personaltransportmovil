@@ -4,7 +4,7 @@ const Header = () => {
   return (
     <View style={styles.header}>
       <Image source={require("../assets/icon-bus.png")} style={styles.logo} />
-      <Text style={styles.TextHeader}>Personal Transport</Text>
+      <Text style={styles.TextHeader}>TrBus</Text>
     </View>
   );
 };
