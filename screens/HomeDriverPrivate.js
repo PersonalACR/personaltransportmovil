@@ -19,7 +19,7 @@ import { GetTravelsApi, ChangeStatusTravel, RegisterPasengerBoarding, getUserDat
 import StatusTravel from "../constants/StatusTravel";
 import { getTime } from "../Tools/Tools";
 
-const hubUrl = "https://back-j10z.onrender.com/travelRT";
+const hubUrl = "https://apipersonaltransport.argossolution.com/travelRT";
 
 export default function HomeDriverPrivate() {
   const [listTravels, setTravels] = useState();
